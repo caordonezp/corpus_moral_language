@@ -1,0 +1,223 @@
+#text analysis - presidential debates 2018
+# Analysis of debates: telecaribe-heraldo, teleantioquia-semana, university of columbia
+#Camilo Andrés Ordóñez Pinilla
+#13-02-2019
+
+
+#loading tm package|
+install.package (tm)
+library (tm)
+
+# FIRST PART - CREATING THE CORPUS
+
+#create the corpus from a directory
+document <- Corpus(DirSource("E:/BOSQUE/2019/LECCIÓN INAGURAL/DOCUMENTOS/DEBATES"))
+
+#inspect the created corpus
+document
+
+#list the created corpus
+summary (document)
+
+#inspect a particular document
+writeLines (as.character(document[[1]]))
+
+# SECOND PART - MAKING PRELIMINAR TRANSFORMATIONS 
+
+
+#sometimes in documents there is not space between hyphens or colons and the words.
+#as a consequence, if we use remove puntctuation, the words betweeen such symbols will be, incorrectly, 
+#combined. This code fixes such problem, creating a new transformation function -toSpace- that puts spaces
+#between hyphens and colons and the words.
+
+#create toSpace
+toSpace <- content_transformer(function(x, pattern) (gsub(pattern, "", x)))
+
+#execute toSpace over the Corpus (to remove any potential dangerous symbol)
+document <- tm_map (document, toSpace, "-")
+document <- tm_map (document, toSpace, ":")
+document <- tm_map(document, toSpace, "'")
+document <- tm_map(document, toSpace, "'")
+document <- tm_map(document, toSpace, "-")
+document <- tm_map(document, toSpace, "$")
+
+
+#check if the transformation was performed correctly
+writeLines (as.character(document[[1]]))
+
+#remove punctuation - replacing punctuation marks with ""
+document <- tm_map (document, removePunctuation)
+
+# transform the Corpus' upper case occurrences to lower case (using tolower)
+document <- tm_map(document,content_transformer(tolower))
+
+# remove numbers (if numbers are not of interested. Sometimes they will be, for example, if we are interested in appareances of years)
+document <- tm_map(document, removeNumbers)
+
+#check
+writeLines (as.character(document[[1]]))
+
+# remove common words, as articles, etc. 
+# supporting languages are (names are case sensitive): danish, dutch, english, finnish, french, german, hungarian, italian, norwegian, portuguese, russian, spanish,  swedish
+document <- tm_map(document, removeWords, stopwords("spanish"))
+
+#check
+writeLines (as.character(document[[1]]))
+
+
+# remove extraneous whitespaces (maybe just cosmectic ¿?)
+document <- tm_map(document, stripWhitespace)
+
+
+# THIRD PART - THE DOCUMENT TERM MATRIX (DTM)
+# A matrix that lists all occurences of words in the corpus, by document.
+# Rows: documents; Columns: words-terms.
+# In the TDM, trms are rows and documents are columns.
+
+dtm <- DocumentTermMatrix(document)
+
+dtm
+
+# FIFTH PART - MINING THE MATRIX
+
+#Calculate frequencies of each word
+frequency <- colSums(as.matrix(dtm))
+
+#order frequencies in descending order
+ord <- order(frequency,decreasing=TRUE)
+
+#list most frequently occurring terms (n = number of terms)
+frequency [head(ord, n = 30)]
+
+#list least frequently occurring terms (n = number of terms)
+frequency [tail(ord, n = 15)]
+
+#list terms that occur at least (a number of times)
+findFreqTerms(dtm, lowfreq = 7)
+
+#find correlations between terms (a quantitative measure of the co-occurrence of words in multiple documents.)
+#findAssocs(x, terms, corlimit); x:a DTM or a TDM, terms: a term, corlimit: the lower correlation from 0 to 1.
+# for example, correlations with project
+#not an indicator of contiguity
+findAssocs(dtm, "país", 0.6)
+
+#SIXTH PART - MAKING GRAPHICS
+
+#Make a frequency histogram
+
+#load the package ggplot2
+library (ggplot2)
+
+#create a data frame
+wf <- data.frame(palabras=names(frequency),ocurrencias=frequency)
+
+#create the histogram
+#you can change the frequecy coeficient (here 100)
+
+p <- ggplot(subset(wf, frequency>40), aes(palabras, ocurrencias))
+p <- p + geom_bar(stat="identity", color = "yellow", fill = "purple")
+p <- p + theme(axis.text.x=element_text(angle=45, hjust=1))
+p <- p + labs (title = "Frecuencia de palabras - Debates presidenciales 2018")
+p
+
+#create a wordcloud
+
+library (wordcloud)
+
+#set a sed for a consistent look across clouds
+set.seed(42)
+
+#limit words by specifying min frequency (adjust scale vector to display all the words, or the size of the window)
+wordcloud(names(frequency),frequency, min.freq=40)
+
+#adding colors
+library (RColorBrewer)
+wordcloud(names(frequency),frequency,min.freq=40,colors=brewer.pal(6,"Dark2"))
+
+########################################
+
+#SECOND PART - CALCULING COEFICIENT OF MORAL LANGUAGE
+
+#Using MDF for removing words
+#Camilo Andrés Ordóñez Pinilla
+#13 de febrero de 2019
+#Using Moral Foundations Dictionary translated to spanish by me file:///E:/BOSQUE/2019/LECCIÓN INAGURAL/for steem - unicode.txt 
+
+#COUNT TERMS
+
+dtm <- DocumentTermMatrix(document)
+
+dtm
+
+#create a variable
+total_words <- 3878
+
+#REMOVER MORAL TERMS
+
+#Create the list of moral terms from the translation of MFD
+
+mfd_traducido_spanish <- c ("abandonar", "abstención", "abstinencia", "abusada", "abusadas", "abusado", 
+                            "abusados", "abuso", "acatar", "adultera", "adulterado", "adultero", "agitador", "agitadora", "agitadores", "aliado", "amistad", "amistosa", "amistoso", 
+                            "aniquilar", "antiética", "antiético", "apabullar", "aplastar", "apostasía", "apóstata", "apropiada", "apropiado", "aprovechar", "arriesgar", "asco", "asegurar", "asesina", "asesinada", "asesinado", "asesinato", "asesinatos", "asesino", "asqueroso", "atacar", "austera", "austeridad", "austero", "autoridad", "balanceado", "beneficio", "bien", "bondad", "brutalidad", "burguesía", "camarada", "canon", "carácter", "casta", "casto", "celibato", "clase", "cohorte", "colectivo", "combatir", "compañero", "compasión", "compasiva", "compasivo", "común", "comuna", "comunal", "comunitario", "conformidad", "constante", "contagiosa", "contagioso", "contaminada", "contaminado", "control", "correcto", "corrupto", "corrupta", "corrupción", "corruptos", "corruptas", "cruel", "crueldad", "cuidado", "cuidar", "cumplimiento", "cumplir",                 
+                            "dañar", "daño", "deber", "decente", "defender", "deferencia", "degradada", "degradado", "degradar", 
+                            "degradarse", "denunciar", "denuncias", "depravación", "depravada", "depravado", "derechos", 
+                            "desafiante", "desdeñar", "desempañar", "desenfrenado", "desertar", "desertor", "desertora",
+                            "desertores", "deshonesta", "deshonesto", "desleal", "deslealtad", "desobediente", "destrozada", 
+                            "destrozadas", "destrozado", "destrozados", "destrozos", "destruir", "detrimento", "devoto", 
+                            "diáfano", "disciplinado", "discriminación", "discriminador", "disentimiento", "disentir", "dios", 
+                            "disidente", "disociativo", "disoluto", "doctrina", "doncella", "ejemplar", "elogiable", "elogio",
+                            "elogios", "empañar", "empatía", "empático", "enajenar", "encomiable", "enemigo", "enferma", 
+                            "enferma", "enfermedad", "enfermo", "enfermo", "engañar", "equidad", "escudo", "espía", "espiar", 
+                            "estatus", "estéril", "estragos", "ético", "excluida", "excluidas", "excluido", "excluidos", 
+                            "exclusión", "exterior", "extraño", "familia", "familiar", "fanático", "favoritismo", "fidelidad", 
+                            "foráneo", "gremio", "grosera", "grosero", "grupo", "guardar", "guerra", "guerras", "hereje", 
+                            "herético", "herida", "herir", "herir", "homólogo", "honesta", "honesto", "honor", "ideal", 
+                            "iglesia", "igualdad", "igualitario", "ilegal", "ilegales", "ilegalidad", "ilícito", "imparcial", 
+                            "imparcialidad", "impía", "impiedad", "impío", "impostor", "impúdica", "impúdico", "inconforme", 
+                            "incorrecto", "incumplir", "indecente", "indisciplinado", "individual", "inequitativo", 
+                            "inescrupuloso", "infiel", "injusta", "injusto", "inmaculado", "inmigrante", "inmoral", "inocente", 
+                            "instrucción", "insubordinación", "insubordinaciones", "insurgente", "insurrección", 
+                            "insurrecciones", "íntegra", "integridad", "integro", "íntegro", "intemperado", "intolerante", 
+                            "irrespetuoso", "jerarquía", "juntos", "justamente", "justicia", "justo", "lasciva", "lascivo", 
+                            "laxo", "lealtad", "lección", "legal", "ley", "libertina", "libertinaje", "libertino", "lícito",
+                            "líder", "limpia", "límpido", "limpio", "loable", "madre", "madres", "mala", "malo", "malvada",
+                            "malvado", "mancha", "manchar", "mancillada", "mancillado", "mancillar", "matar", "mentir", "miembro",
+                            "modesta", "modestia", "modesto", "moral", "motín", "mugre", "nación", "noble", "nuestro", "obedecer",
+                            "obediencia", "obediente", "obscena", "obsceno", "obstruir", "ofensa", "ofensiva", "ofensivo", 
+                            "oponerse", "orden", "pacífica", "pacífico", "padre", "padres", "parcial", "parcialidad", "patria", 
+                            "patriota", "patriotismo", "paz", "pecado", "pecador", "pecadora", "pecados", "pelear", "perjudicar",
+                            "permiso", "permitir", "perra", "perversa", "perverso", "pervertida", "pervertido", "piadosa", 
+                            "piadoso", "piedad", "preferencia", "prejuicio", "prejuicioso", "preservar", "principio", "prístino", 
+                            "profana", "profanada", "profanado", "profanar", "profanar", "profano", "promiscua", "promiscuo", 
+                            "prostituta", "protección", "protesta", "protestar", "protestas", "pura", "pureza", "puro", "puta", 
+                            "rango", "razonable", "rebelde", "rebelión", "rebeliones", "reciprocidad", "recta", "recto", 
+                            "refinado", "refugio", "renegar", "repulsión", "repulsiva", "repulsivo", "respetable", "respetado", 
+                            "respeto", "respetuoso", "retador", "retadora", "reverencia", "ruina", "sacra", "sacro", "sagrada", 
+                            "sagrado", "saludable", "santa", "santidad", "santo", "secuestrar", "segregada", "segregado", 
+                            "seguridad", "seguro", "servir", "sesgada", "sesgadas", "sesgado", "sesgados", "sesgo", "simpatía", 
+                            "sinvergüenza", "solidaridad", "subversivo", "sucia", "sucio", "sufrimiento", "sumisión", 
+                            "supremacía", "tacha", "templanza", "terrorismo", "tolerancia", "tolerante", "tradición", "traidor", 
+                            "traidora", "trampa", "transgresión", "transgresor", "transgresora", "unidad", "unidos", "unión",
+                            "unísono", "valiosa", "valioso", "valor", "valores", "veneración", "violencia", "violencias", 
+                            "violenta", "violento", "virgen", "virginal", "virginidad", "virtuosa", "virtuoso")
+
+
+#remove the words from such list
+document <- tm_map(document, removeWords, mfd_traducido_spanish)
+
+#recount terms
+
+dtm <- DocumentTermMatrix(document)
+
+dtm
+
+#creat new variable
+minus_moral_words <- 3792
+
+#Create the percentage of morality language
+
+moral_words = total_words - minus_moral_words
+moral_words
+
+coeficient_moral_language = (moral_words * 100)/total_words
+coeficient_moral_language
