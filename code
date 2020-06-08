@@ -1,8 +1,6 @@
-#text analysis - presidential debates 2018
-# Analysis of debates: telecaribe-heraldo, teleantioquia-semana, university of columbia
+#text analysis 
 #Camilo Andrés Ordóñez Pinilla
-#13-02-2019
-
+#04/2020
 
 #loading tm package|
 install.package (tm)
